@@ -14,7 +14,7 @@ help() {
   echo "  -o      Overwrite existing files"
   echo "  -p      Only convert .pw to .cas (using Pointwise)"
   echo "  -i      Only convert .cas to .msh (using ICEM)"
-  echo "  -c      Also generate msh2cdp.in when there are multiple parts"
+  echo "  -c      Also generate msh2cdp.in"
   echo
 }
 
