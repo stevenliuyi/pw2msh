@@ -8,10 +8,12 @@
 help() {
   echo "Convert Pointwise meshes to Fluent msh files."
   echo
-  info "Usage: pw2msh.sh [-o] FILENAME"
+  info "Usage: pw2msh.sh [-opi] FILENAME"
   echo
   echo "Options:"
   echo "  -o      Overwrite existing files"
+  echo "  -p      Only convert .pw to .cas (using Pointwise)"
+  echo "  -i      Only convert .cas to .msh (using ICEM)"
   echo
 }
 
@@ -29,27 +31,36 @@ info () {
 #######################################
 # default options
 default_overwrite=false # -o
+default_pw_only=false # -p
+default_icem_only=false # -i
 
-while getopts ":o" opt; do
+while getopts ":opi" opt; do
   case $opt in
     o) overwrite=true ;;
+    p) pw_only=true ;;
+    i) icem_only=true ;;
     \?) echo "Invalid option -$OPTARG" >&2
     exit 1 ;;
   esac
 done
 shift $((OPTIND-1))
 
-if [ -z $overwrite ]; then
-  overwrite=$default_overwrite
+[ -z $overwrite ] && overwrite=$default_overwrite
+[ -z $pw_only ] && pw_only=$default_pw_only
+[ -z $icem_only ] && icem_only=$default_icem_only
+
+if [ "$pw_only" = true ] && [ "$icem_only" = true ]; then
+  echo "Options -p and -i cannot be used together!"
+  exit 1
 fi
 
 # load pointwise and ansys
 if command -v module > /dev/null; then
-  module load pointwise/18.4R4
-  module load ansys
+  [ "$icem_only" = false ] && module load pointwise/18.4R4
+  [ "$pw_only" = false ] && module load ansys
 fi
 
-# Pointwise filename
+# filename
 name=$1
 # show help information when no filename is passed
 [ "$name" == "" ] && help && exit
@@ -58,17 +69,15 @@ name="${name%.*}"
 
 # check if pointwise and/or ansys is available
 if ! command -v pointwise > /dev/null; then
-  info "pointwise not found!"
-  exit 1
+  [ "$icem_only" = false ] && info "pointwise not found!" && exit 1
 fi
 
 if ! command -v icemcfd > /dev/null; then
-  info "icemcfd not found!"
-  exit 1
+  [ "$pw_only" = false ] && info "icemcfd not found!" && exit 1
 fi
 
 # check if .pw file exists
-if [ ! -f "${name}.pw" ]; then
+if [ ! -f "${name}.pw" ] && [ "$icem_only" = false ]; then
   info "${name}.pw not found!" 
   exit 1
 fi
@@ -77,72 +86,76 @@ fi
 # .pw to .cas                         #
 #######################################
 # convert .pw to .cas (also generate separate .pw files when there are multiple parts)
-info "Converting ${name}.pw to .cas file(s)..."
-id=1
-while true; do
-  # check if .cas file already exists
-  if [ -f "${name}_part${id}.cas" ]; then
-    info "${name}_part${id}.cas already exists."
-    if [ "$overwrite" = false ]; then
-      ((id++))
-      continue
-    else
-      info "${name}_part${id}.cas will be overwritten."
+if [ "$icem_only" = false ]; then
+  info "Converting ${name}.pw to .cas file(s)..."
+  id=1
+  while true; do
+    # check if .cas file already exists
+    if [ -f "${name}_part${id}.cas" ]; then
+      info "${name}_part${id}.cas already exists."
+      if [ "$overwrite" = false ]; then
+        ((id++))
+        continue
+      else
+        info "${name}_part${id}.cas will be overwritten."
+      fi
+    elif [ -f "${name}.cas" ] && [ $id == 1 ]; then
+      info "${name}.cas already exists."
+      if [ "$overwrite" = false ]; then
+        break
+      else
+        info "${name}.cas will be overwritten."
+      fi
     fi
-  elif [ -f "${name}.cas" ] && [ $id == 1 ]; then
-    info "${name}.cas already exists."
-    if [ "$overwrite" = false ]; then
+  
+    # convert .pw to .cas
+    pointwise -b pw2cas.glf ${name} "FLUID${id}" || exit 1
+  
+    # check if the last part has been processed
+    if [ -f "${name}.cas" ]; then
+      info "${name}.cas is generated."
       break
+    elif [ -f "${name}_part${id}.cas" ]; then
+      info "${name}_part${id}.cas is generated."
     else
-      info "${name}.cas will be overwritten."
+      break
     fi
-  fi
-
-  # convert .pw to .cas
-  pointwise -b pw2cas.glf ${name} "FLUID${id}" || exit 1
-
-  # check if the last part has been processed
-  if [ -f "${name}.cas" ]; then
-    info "${name}.cas is generated."
-    break
-  elif [ -f "${name}_part${id}.cas" ]; then
-    info "${name}_part${id}.cas is generated."
-  else
-    break
-  fi
-
-  # next part
-  ((id++))
-done
+  
+    # next part
+    ((id++))
+  done
+fi
 
 #######################################
 # .cas to .msh                        #
 #######################################
-# loop through all .cas files
-for filename in ${name}*.cas; do
-  [ -f "${filename}" ] || continue
-  filename="${filename%.*}" # remove extension
-  export CASE_FILENAME=$filename # set environment variable
-
-  # check if .msh file already exists
-  if [ -f "${filename}.msh" ]; then
-    info "${filename}.msh already exists."
-    if [ "$overwrite" = false ]; then
-      continue
-    else
-      info "${filename}.msh will be overwritten."
+if [ "$pw_only" = false ]; then
+  # loop through all .cas files
+  for filename in ${name}*.cas; do
+    [ -f "${filename}" ] || continue
+    filename="${filename%.*}" # remove extension
+    export CASE_FILENAME=$filename # set environment variable
+  
+    # check if .msh file already exists
+    if [ -f "${filename}.msh" ]; then
+      info "${filename}.msh already exists."
+      if [ "$overwrite" = false ]; then
+        continue
+      else
+        info "${filename}.msh will be overwritten."
+      fi
     fi
-  fi
+  
+    # convert .cas to .msh
+    info "Converting ${filename}.cas to ${filename}.msh..."
+    icemcfd -batch -script cas2msh.tcl ${filename}
+  
+    if [ -f "${filename}.msh" ]; then
+      info "${filename}.msh is generated."
+    fi
+  
+  done
 
-  # convert .cas to .msh
-  info "Converting ${filename}.cas to ${filename}.msh..."
-  icemcfd -batch -script cas2msh.tcl ${filename}
-
-  if [ -f "${filename}.msh" ]; then
-    info "${filename}.msh is generated."
-  fi
-
-done
-
-# clean temporary files
-rm -f *.fbc* *.atr *.prj *.uns *.tin *.blk
+  # clean temporary files
+  rm -f *.fbc* *.atr *.prj *.uns *.tin *.blk
+fi
