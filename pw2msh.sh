@@ -101,6 +101,7 @@ if [ "$icem_only" = false ]; then
         ((id++))
         continue
       else
+	rm -f ${name}_part${id}.cas
         info "${name}_part${id}.cas will be overwritten."
       fi
     elif [ -f "${name}.cas" ] && [ $id == 1 ]; then
@@ -108,6 +109,7 @@ if [ "$icem_only" = false ]; then
       if [ "$overwrite" = false ]; then
         break
       else
+	rm -f ${name}.cas
         info "${name}.cas will be overwritten."
       fi
     fi
@@ -146,6 +148,7 @@ if [ "$pw_only" = false ]; then
       if [ "$overwrite" = false ]; then
         continue
       else
+	rm -f ${filename}.msh
         info "${filename}.msh will be overwritten."
       fi
     fi
@@ -156,6 +159,8 @@ if [ "$pw_only" = false ]; then
   
     if [ -f "${filename}.msh" ]; then
       info "${filename}.msh is generated."
+    else
+      info "Error occurred when generating ${filename}.msh."
     fi
   
   done
