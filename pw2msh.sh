@@ -49,10 +49,12 @@ if command -v module > /dev/null; then
   module load ansys
 fi
 
-# Pointwise filename (no extension)
+# Pointwise filename
 name=$1
 # show help information when no filename is passed
 [ "$name" == "" ] && help && exit
+# remove extension in the filename
+name="${name%.*}" 
 
 # check if pointwise and/or ansys is available
 if ! command -v pointwise > /dev/null; then
@@ -71,6 +73,9 @@ if [ ! -f "${name}.pw" ]; then
   exit 1
 fi
 
+#######################################
+# .pw to .cas                         #
+#######################################
 # convert .pw to .cas (also generate separate .pw files when there are multiple parts)
 info "Converting ${name}.pw to .cas file(s)..."
 id=1
@@ -110,6 +115,9 @@ while true; do
   ((id++))
 done
 
+#######################################
+# .cas to .msh                        #
+#######################################
 # loop through all .cas files
 for filename in ${name}*.cas; do
   [ -f "${filename}" ] || continue
