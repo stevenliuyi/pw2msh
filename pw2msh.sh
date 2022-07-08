@@ -174,23 +174,30 @@ fi
 #######################################
 if [ "$cdp" = true ]; then
   cdp_file="msh2cdp.in"
-  count=$(find -maxdepth 1 -name "${name}_part*.msh" | wc -l)
+  count=$(find -maxdepth 1 -name "${name}*.msh" | wc -l)
+
+  # multiple parts
   if [ $count -gt 1 ]; then 
-    > $cdp_file
+    echo "NPART=1000" > $cdp_file
     id=0
-    for filename in ${name}_part*.msh; do
+    for filename in ${name}*.msh; do
       [ -f "${filename}" ] || continue
       id0=$(printf "%04d" $id)
       echo "MSH.$id0=./${filename}" >> $cdp_file	    
       ((id++))
     done
-    echo "NPART=1000" >> $cdp_file
     for ((id=0; id<$count; id++)); do
       id0=$(printf "%04d" $id)
       echo "RECONN$((id+1)).$id0=RECONNENT" >> $cdp_file	    
     done
     info "$cdp_file is generated."
+  elif [ $count == 1 ]; then
+    echo "NPART=1000" > $cdp_file
+    for filename in ${name}*.msh; do
+      [ -f "${filename}" ] || continue
+      echo "MSH=./${filename}" >> $cdp_file
+    done
   else
-    info "There should be at least two parts to generate msh2cdp.in"
+    info "Cannot find .msh files to generate msh2cdp.in"
   fi
 fi
