@@ -1,13 +1,19 @@
 #!/bin/bash
 
-# load pointwise and ansys
-if command -v module > /dev/null; then
-  module load pointwise/18.4R4
-  module load ansys
-fi
+#######################################
+# helper functions                    #
+#######################################
 
-# Pointwise filename (no extension)
-name=$1
+# show help information
+help() {
+  echo "Convert Pointwise meshes to Fluent msh files."
+  echo
+  info "Usage: pw2msh.sh [-o] FILENAME"
+  echo
+  echo "Options:"
+  echo "  -o      Overwrite existing files"
+  echo
+}
 
 # show info
 info () {
@@ -17,6 +23,36 @@ info () {
 
   printf "${red}$1\n${clear}"
 }
+
+#######################################
+# input                               #
+#######################################
+# default options
+default_overwrite=false # -o
+
+while getopts ":o" opt; do
+  case $opt in
+    o) overwrite=true ;;
+    \?) echo "Invalid option -$OPTARG" >&2
+    exit 1 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+if [ -z $overwrite ]; then
+  overwrite=$default_overwrite
+fi
+
+# load pointwise and ansys
+if command -v module > /dev/null; then
+  module load pointwise/18.4R4
+  module load ansys
+fi
+
+# Pointwise filename (no extension)
+name=$1
+# show help information when no filename is passed
+[ "$name" == "" ] && help && exit
 
 # check if pointwise and/or ansys is available
 if ! command -v pointwise > /dev/null; then
@@ -42,11 +78,19 @@ while true; do
   # check if .cas file already exists
   if [ -f "${name}_part${id}.cas" ]; then
     info "${name}_part${id}.cas already exists."
-    ((id++))
-    continue
-  elif [ -f "${name}.cas" ] && $id == 1; then
+    if [ "$overwrite" = false ]; then
+      ((id++))
+      continue
+    else
+      info "${name}_part${id}.cas will be overwritten."
+    fi
+  elif [ -f "${name}.cas" ] && [ $id == 1 ]; then
     info "${name}.cas already exists."
-    break
+    if [ "$overwrite" = false ]; then
+      break
+    else
+      info "${name}.cas will be overwritten."
+    fi
   fi
 
   # convert .pw to .cas
@@ -75,14 +119,19 @@ for filename in ${name}*.cas; do
   # check if .msh file already exists
   if [ -f "${filename}.msh" ]; then
     info "${filename}.msh already exists."
-  else
-    # convert .cas to .msh
-    info "Converting ${filename}.cas to ${filename}.msh..."
-    icemcfd -batch -script cas2msh.tcl ${filename}
-
-    if [ -f "${filename}.msh" ]; then
-      info "${filename}.msh is generated."
+    if [ "$overwrite" = false ]; then
+      continue
+    else
+      info "${filename}.msh will be overwritten."
     fi
+  fi
+
+  # convert .cas to .msh
+  info "Converting ${filename}.cas to ${filename}.msh..."
+  icemcfd -batch -script cas2msh.tcl ${filename}
+
+  if [ -f "${filename}.msh" ]; then
+    info "${filename}.msh is generated."
   fi
 
 done
