@@ -73,7 +73,7 @@ name="${name%.*}"
 
 # check if pointwise and/or ansys is available
 if ! command -v pointwise > /dev/null; then
-  [ "$icem_only" = false ] && info "pointwise not found!" && exit 1
+  ([ "$icem_only" = false ] || [ "$cdp" = true ]) && info "pointwise not found!" && exit 1
 fi
 
 if ! command -v icemcfd > /dev/null; then
@@ -173,31 +173,10 @@ fi
 # msh2cdp.in                          #
 #######################################
 if [ "$cdp" = true ]; then
-  cdp_file="msh2cdp.in"
-  count=$(find -maxdepth 1 -name "${name}*.msh" | wc -l)
+  rm -f msh2cdp.in
+  info "Generating msh2cdp.in..."
 
-  # multiple parts
-  if [ $count -gt 1 ]; then 
-    echo "NPART=1000" > $cdp_file
-    id=0
-    for filename in ${name}*.msh; do
-      [ -f "${filename}" ] || continue
-      id0=$(printf "%04d" $id)
-      echo "MSH.$id0=./${filename}" >> $cdp_file	    
-      ((id++))
-    done
-    for ((id=0; id<$count; id++)); do
-      id0=$(printf "%04d" $id)
-      echo "RECONN$((id+1)).$id0=RECONNENT" >> $cdp_file	    
-    done
-    info "$cdp_file is generated."
-  elif [ $count == 1 ]; then
-    echo "NPART=1000" > $cdp_file
-    for filename in ${name}*.msh; do
-      [ -f "${filename}" ] || continue
-      echo "MSH=./${filename}" >> $cdp_file
-    done
-  else
-    info "Cannot find .msh files to generate msh2cdp.in"
-  fi
+  pointwise -b msh2cdp_in.glf ${name} || exit 1
+
+  [ -f "msh2cdp.in" ] && info "msh2cdp.in is generated."
 fi
