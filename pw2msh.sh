@@ -1,4 +1,11 @@
 #!/bin/bash
+#######################################
+# pw2msh - Yi Liu 2022
+# 
+# This script can convert Pointwise
+# meshes to Fluent msh files and also
+# generate msh2cdp.in
+#######################################
 
 #######################################
 # helper functions                    #
@@ -6,6 +13,7 @@
 
 # show help information
 help() {
+  echo
   echo "Convert Pointwise meshes to Fluent msh files."
   echo
   info "Usage: pw2msh.sh [-o|p|i|c] FILENAME"
