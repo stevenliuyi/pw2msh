@@ -57,7 +57,6 @@ set periodic_bcs [lsearch -all -inline $bcs *0]
 # loop through all periodic conditions
 foreach bc0 $periodic_bcs {
   set bc1 [string replace $bc0 end end 1]
-  set bc_name [string range $bc0 0 end-1]
 
   # check the surface pair of periodic condition
   if {$bc1 in $bcs} {
@@ -91,9 +90,6 @@ foreach bc0 $periodic_bcs {
     }
   }
 }
-
-
-
 
 close $infile
 
