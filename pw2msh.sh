@@ -62,8 +62,9 @@ shift $((OPTIND-1))
 [ -z $cdp ] && cdp=$default_cdp
 
 if [ "$pw_only" = true ] && [ "$icem_only" = true ]; then
-  echo "Options -p and -i cannot be used together!"
-  exit 1
+  # set both pw_only and icem_only to be false when both -p and -i are present
+  pw_only=false
+  icem_only=false
 fi
 
 # load pointwise and ansys
