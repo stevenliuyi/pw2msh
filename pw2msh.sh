@@ -69,7 +69,7 @@ fi
 
 # load pointwise and ansys
 if command -v module > /dev/null; then
-  [ "$icem_only" = false ] && module load pointwise/18.4R4
+  [ "$icem_only" = false ] && module load pointwise/2022.1
   [ "$pw_only" = false ] && module load ansys
 fi
 
