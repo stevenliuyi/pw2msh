@@ -40,11 +40,19 @@ proc setBC { name } {
       # get all unspecified domains
       set doms [$bc getEntities]
       foreach dom $doms {
+
         set blks [pw::Block getBlocksFromDomains $dom]
+        set register_bcs [$dom getRegisterBoundaryConditions]
   
-        # only set BC when domain is associated with single block
-        # (i.e. not interior domain)
-        if {[llength $blks] == 1} {
+        # only set BC when domain is not inside a block
+        if {[llength $register_bcs] == 1} {
+
+          # check if there is only one block associated with the domain
+          if {[llength $blks] != 1} {
+            puts "there should be only one block associated with the domain $dom"
+            exit
+          }
+
           $reconn_bc apply [list [lindex $blks 0] $dom]
         }
       }
